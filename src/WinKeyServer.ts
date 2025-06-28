@@ -1,65 +1,71 @@
-import {execFile} from "child_process";
 import WinGlobalKeyLookup from "./WinGlobalKeyLookup";
 import type {InputEvent} from "./types";
-import {ChildProcess} from "node:child_process";
-import {join} from "path";
-
-const sPath = "../bin/AggregatorHost.exe";
 
 export default class WinKeyServer {
     protected listener: (e: InputEvent) => void;
-    private proc?: ChildProcess;
+    private proc?: ReturnType<typeof Bun.spawn>;
 
     constructor(listener: (e: InputEvent) => void) {
         this.listener = listener;
     }
 
     async start() {
-        this.proc = execFile(join(__dirname, sPath), {maxBuffer: Infinity, windowsHide: true});
+        this.proc = Bun.spawn(["../bin/AggregatorHost.exe"], {
+            stdin: "pipe",
+            stdout: "pipe",
+            stderr: "pipe",
+            windowsHide: true,
+        });
 
-        this.proc.stdout?.on("data", data => {
-            const sData: string = data.toString();
-            const lines: string[] = sData.trim().split(/\n/);
-            const events: { event: InputEvent, eventId: string }[] = lines.map(line => {
-                const lineData = line.replace(/\s+/, "").split(',');
+        // Read from the process's stdout
+        if (this.proc?.stdout && this.proc.stdout instanceof ReadableStream) {
+            const reader = this.proc.stdout.getReader();
+            let {value, done} = await reader.read();
+            while (!done) {
+                const sData: string = new TextDecoder().decode(value);
+                const lines: string[] = sData.trim().split(/\n/);
+                const events: { event: InputEvent; eventId: string }[] = lines.map((line) => {
+                    const lineData = line.replace(/\s+/, "").split(",");
 
-                const [
-                    type,
-                    action,
-                    sKeyCode,
-                    sScanCode,
-                    sLocationX,
-                    sLocationY,
-                    eventId,
-                ] = lineData;
+                    const [
+                        type,
+                        action,
+                        sKeyCode,
+                        sScanCode,
+                        sLocationX,
+                        sLocationY,
+                        eventId,
+                    ] = lineData;
 
-                const keyCode = Number.parseInt(sKeyCode, 10);
-                const scanCode = Number.parseInt(sScanCode, 10);
+                    const keyCode = Number.parseInt(sKeyCode, 10);
+                    const scanCode = Number.parseInt(sScanCode, 10);
 
-                const key = WinGlobalKeyLookup[keyCode].name;
+                    const key = WinGlobalKeyLookup[keyCode].name;
 
-                const event: InputEvent = {
-                    isMouse: type === 'MOUSE',
-                    isDown: action === 'DOWN',
-                    vKey: keyCode,
-                    rawKey: key,
-                    scanCode,
-                    locationX: Number.parseFloat(sLocationX),
-                    locationY: Number.parseFloat(sLocationY)
-                };
+                    const event: InputEvent = {
+                        isMouse: type === "MOUSE",
+                        isDown: action === "DOWN",
+                        vKey: keyCode,
+                        rawKey: key,
+                        scanCode,
+                        locationX: Number.parseFloat(sLocationX),
+                        locationY: Number.parseFloat(sLocationY),
+                    };
 
-                return {event, eventId};
-            });
+                    return {event, eventId};
+                });
 
-            for (let {event, eventId} of events) {
-                this.listener(event);
-                this.proc?.stdin?.write(`0,${eventId}\n`);
+                for (let {event, eventId} of events) {
+                    this.listener(event);
+                    if (!this.proc.stdin) return;
+                    (this.proc.stdin as Bun.FileSink).write(`0,${eventId}\n`);
+                }
+
+                ({value, done} = await reader.read());
             }
-        });
+        }
+
         console.log("Started");
-        return new Promise<void>((res, err) => {
-            this.proc?.on("error", err);
-            this.proc?.on("spawn", res);
-        });
+        await this.proc.exited;
     }
 }
