@@ -7,6 +7,7 @@ export interface InputEvent {
     locationX: number;
     locationY: number;
 }
+
 export interface KeyEvent {
     isDown: boolean;
     vKey: number;
@@ -15,6 +16,7 @@ export interface KeyEvent {
     time?: number;
     amount?: number;
 }
+
 export interface MouseEvent {
     isDown: boolean;
     vKey: number;

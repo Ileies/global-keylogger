@@ -1,18 +1,18 @@
-import {KeyEvent} from "./types";
+import type {KeyEvent} from "./types";
 
 export default class TimeGame {
     animating = false;
 
-    async sleep(ms: number){
+    async sleep(ms: number) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     async animation() {
         this.animating = true;
-        process.stdout.write(/*"\x1b[7m"+*/" ".repeat(33)+"\x1b[0m");
-        process.stdout.write("\x1b[46m"+" ".repeat(6)+"\x1b[0m");
+        process.stdout.write(/*"\x1b[7m"+*/" ".repeat(33) + "\x1b[0m");
+        process.stdout.write("\x1b[46m" + " ".repeat(6) + "\x1b[0m");
         process.stdout.write("\n");
-        while(this.animating) {
+        while (this.animating) {
             process.stdout.write("\x1b[41m \x1b[0m");
             await this.sleep(1);
         }
@@ -23,8 +23,6 @@ export default class TimeGame {
         console.log("\n" + e.time + ":" + e.amount);
     }
 }
-
-
 
 
 //48:7
