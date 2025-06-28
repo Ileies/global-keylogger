@@ -1,12 +1,11 @@
 {
   "name": "global-keylogger",
-  "version": "0.0.1",
-  "module": "src/index.ts",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "bunx tsc",
-	"start": "bun run .",
-	"timegame": "bun run . timegame"
+    "build": "bun build src/index.ts --outdir build --target bun --minify",
+    "start": "bun run src/index.ts",
+    "timegame": "bun run src/index.ts timegame"
   },
   "devDependencies": {
     "@types/bun": "latest"
